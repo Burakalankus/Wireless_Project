@@ -2,7 +2,6 @@
 
 {% block content %}
 <div class="row g-4">
-    <!-- Device Table -->
     <div class="col-lg-5">
         <div class="device-table p-3">
             <h5 class="mb-3"><i class="fas fa-list me-2"></i>Detected Devices</h5>
@@ -124,7 +123,7 @@ async function loadData() {
         paper_bgcolor: '#f8f9fa',
         font: { family: 'Inter, Arial, sans-serif' }
     };
-    Plotly.newPlot('map', [...sensorTraces, ...deviceTraces], layout, {responsive: true});
+    Plotly.newPlot('map', [...sensorTraces, ...deviceTraces], layout, {responsive: true,displaylogo: false});
 }
 
 function showDeviceDetails(deviceId) {
@@ -245,7 +244,7 @@ function showTrilaterationPlotly(device) {
         showlegend: false,
         height: 320
     };
-    Plotly.newPlot('trilaterationPlot', traces, layout, {displayModeBar: false, responsive: true});
+    Plotly.newPlot('trilaterationPlot', traces, layout, {displayModeBar: false, responsive: true, displaylogo: false});
 }
 
 document.addEventListener('DOMContentLoaded', loadData);

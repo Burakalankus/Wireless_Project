@@ -2,11 +2,12 @@
 Main Flask application for the Wi-Fi indoor positioning system.
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 from flask_bootstrap import Bootstrap
 from src.reader import RSSIDataReader
 from src.rssi_to_distance import RSSIConverter
 from src.trilateration import TrilaterationEngine
+import os
 import json
 
 app = Flask(__name__)
@@ -27,22 +28,31 @@ def index():
 @app.route('/api/devices')
 def get_devices():
     """Get all devices with their positions and measurements."""
-    # Load data
     data = reader.load_all_data()
-    
-    # Get all devices
+
+    # Load overrides if exist
+    override_path = os.path.join("data", "overrides.json")
+    overrides = {}
+    if os.path.exists(override_path):
+        with open(override_path, "r") as f:
+            overrides = json.load(f)
+
+    # Get all device IDs from the dataset
     all_devices = set()
     for df in data.values():
         all_devices.update(df['device_id'].unique())
-    
-    # Process each device
+
     devices = []
     for device_id in all_devices:
         measurements = reader.get_latest_measurements(device_id)
         if len(measurements) >= 3:
             distances = list(rssi_converter.convert_measurements(measurements).values())
             position = trilateration_engine.estimate_position(distances)
-            
+
+            # Apply override if available
+            if device_id in overrides:
+                position = (overrides[device_id]["x"], overrides[device_id]["y"])
+
             device_info = {
                 'id': device_id,
                 'position': {'x': position[0], 'y': position[1]},
@@ -56,7 +66,7 @@ def get_devices():
                 ]
             }
             devices.append(device_info)
-    
+
     return jsonify(devices)
 
 @app.route('/api/sensors')
@@ -68,5 +78,27 @@ def get_sensors():
     ]
     return jsonify(sensors)
 
+@app.route('/api/update_position', methods=['POST'])
+def update_position():
+    """Update the position of a specific device and store it."""
+    data = request.get_json()
+    device_id = data['device_id']
+    x = data['x']
+    y = data['y']
+
+    override_path = os.path.join("data", "overrides.json")
+    overrides = {}
+
+    if os.path.exists(override_path):
+        with open(override_path, "r") as f:
+            overrides = json.load(f)
+
+    overrides[device_id] = {"x": x, "y": y}
+
+    with open(override_path, "w") as f:
+        json.dump(overrides, f, indent=2)
+
+    return '', 200
+
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True)

@@ -69,7 +69,27 @@
                 <!-- YENİ: Cihaz Yolu Grafiği -->
                 <div class="mt-4">
                     <h6 class="mb-2 text-secondary">Device Path History</h6>
-                    <div id="devicePathPlot" style="height:250px;"></div> {/* Yükseklik isteğe bağlı */}
+                    <div id="devicePathPlot" style="height:300px;"></div>
+                    <!-- index.html içinde Device Details Modal -->
+<div class="modal fade" id="deviceModal" tabindex="-1" aria-labelledby="deviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <!-- ... (modal-header) ... -->
+            <div class="modal-body">
+                <!-- ... (deviceDetails div'i) ... -->
+                <!-- ... (Update Real Location formu) ... -->
+                <!-- ... (Trilateration Visualization div'i) ... -->
+                <!-- ... (Device Path History div'i) ... -->
+
+                <!-- YENİ: RSSI Along Path Grafiği -->
+                <div class="mt-4">
+                    <h6 class="mb-2 text-secondary">RSSI Along Path from Sensors</h6>
+                    <div id="rssiAlongPathPlot" style="height:300px;"></div> {/* Yüksekliği ayarlayabilirsiniz */}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                 </div>
                 <!-- YENİ KISIM BİTİŞİ -->
 

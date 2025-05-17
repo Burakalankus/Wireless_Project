@@ -266,7 +266,7 @@ function showTrilaterationPlotly(device) {
         traces.push({
             x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
             marker: { symbol: 'triangle-up', size: 16, color: '#dc3545' }, text: [m.sensor_id],
-            textposition: 'bottom right', name: `Sensor ${m.sensor_id}`,
+            textposition: 'bottom right', name: `Sensoar ${m.sensor_id}`,
             hovertemplate: `${m.sensor_id}<br>X: ${sensor.position.x.toFixed(2)}<br>Y: ${sensor.position.y.toFixed(2)}<extra></extra>`
         });
         const theta = Array.from({ length: 100 }, (_, i) => 2 * Math.PI * i / 100);
@@ -340,10 +340,10 @@ function showDevicePathHistoryPlot(device) {
                     });
                 }
                 plotTraces.push({ // Sensör marker'ı heatmap üzerinde
-                    x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
-                    name: `Sensor ${sensor.id.slice(-4)}`, text: [sensor.id.slice(-4)], textposition: 'bottom right',
+                    x: [sensor.position.x], y: [sensor.position.y], mode: 'markers', type: 'scatter',
+                     text: [sensor.id.slice(-4)], textposition: 'bottom right',
                     marker: { symbol: 'triangle-up', size: 12, color: 'red', line: {color: 'white', width:1} },
-                    customdata: [`S: ${sensor.id}\n(${sensor.position.x.toFixed(1)},${sensor.position.y.toFixed(1)})`],
+                    customdata: [`${sensor.id}:\n(${sensor.position.x.toFixed(2)},${sensor.position.y.toFixed(2)})`],
                     hovertemplate: '%{customdata}<extra></extra>'
                 });
             }
@@ -367,11 +367,11 @@ function showDevicePathHistoryPlot(device) {
     if (sensors && sensors.length > 0) {
         sensors.forEach(sensor => {
             if (sensor.position && typeof sensor.position.x === 'number') {
-                plotTraces.push({
-                    x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
-                    name: `${sensor.id.slice(-7)}`, text: '', textposition: 'bottom right',
-                    marker: { symbol: 'triangle-up', size: 12, color: 'red' }
-                });
+                // plotTraces.push({
+                //     x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
+                //     name: `${sensor.id.slice(-1)}`, text: 'dfgdsg', textposition: 'bottom right',
+                //     marker: { symbol: 'triangle-up', size: 12, color: 'red' }
+                // });
             }
         });
     }
@@ -417,7 +417,7 @@ function showRssiAlongPathPlot(device) {
             const sensorId = sensor.id;
             const rssiValuesForSensor = history.map(h => h.rssi_values && h.rssi_values[sensorId] !== undefined ? h.rssi_values[sensorId] : null);
             if (rssiValuesForSensor.some(val => val !== null)) {
-                plotTraces.push({ x: steps, y: rssiValuesForSensor, mode: 'lines', type: 'scatter', name: `Sensor ${sensorId.slice(-4)}` });
+                plotTraces.push({ x: steps, y: rssiValuesForSensor, mode: 'lines', type: 'scatter', name: `Sensor ${sensorId.slice(-7)}` });
             }
         });
     }

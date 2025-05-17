@@ -22,7 +22,7 @@ class PositionVisualizer:
     def plot_positions(self, 
                       estimated_positions: List[Tuple[float, float]],
                       ground_truth: Optional[List[Tuple[float, float]]] = None,
-                      title: str = "Indoor Positioning Results",
+                      title: str = "Positioning Results",
                       show_error: bool = True) -> None:
         """
         Plot estimated positions and sensor locations.

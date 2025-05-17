@@ -1,5 +1,5 @@
 """
-Utility functions for the Wi-Fi indoor positioning system.
+Utility functions for the Wi-Fi outdoor positioning system.
 """
 
 from typing import List, Tuple

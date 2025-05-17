@@ -1,68 +1,68 @@
 """
-RSSI to distance conversion module using the log-distance path loss model.
+RSSI-Distance conversion and RSSI simulation using log-distance path loss model.
 """
 
-from typing import List, Dict
 import numpy as np
+from typing import Dict, Tuple
 
 class RSSIConverter:
-    """Converts RSSI measurements to distances using the log-distance path loss model."""
-    
-    def __init__(self, p0: float = -32.0, n: float = 2.3):
+    def __init__(self,
+                 tx_power_dBm: float = 20.0,
+                 PL_d0_dB: float = 40.0,
+                 d0: float = 1.0,
+                 path_loss_exponent: float = 2.0,
+                 shadowing_std_dev_dB: float = 0.1,
+                 noise_floor_dBm: float = -90.0):
         """
-        Initialize the RSSI converter.
+        Initialize the converter with model parameters.
+        """
+        self.tx_power_dBm = tx_power_dBm
+        self.PL_d0_dB = PL_d0_dB
+        self.d0 = d0
+        self.path_loss_exponent = path_loss_exponent
+        self.shadowing_std_dev_dB = shadowing_std_dev_dB
+        self.noise_floor_dBm = noise_floor_dBm
+
+        self.sensor_positions: Dict[str, Tuple[float, float]] = {}
+
+    def set_sensor_positions(self, sensor_positions: Dict[str, Tuple[float, float]]):
+        """
+        Set the positions of sensors.
+        """
+        self.sensor_positions = sensor_positions
+
+    def rssi_to_distance(self, rssi_dBm: float) -> float:
+        """
+        Estimate distance from RSSI.
+        """
+        path_loss_dB = self.tx_power_dBm - rssi_dBm
+        if path_loss_dB <= self.PL_d0_dB:
+            return self.d0
+        else:
+            return self.d0 * 10 ** ((path_loss_dB - self.PL_d0_dB) / (10 * self.path_loss_exponent))
+
+    def simulate_rssi_from_position(self, device_pos: Tuple[float, float]) -> Dict[str, float]:
+        """
+        Simulate RSSI from a given device position to each sensor.
         
-        Args:
-            p0: Reference power at 1m distance (dBm)
-            n: Path loss exponent
-        """
-        self.p0 = p0
-        self.n = n
-    
-    def rssi_to_distance(self, rssi: float) -> float:
-        """
-        Convert RSSI to distance using the log-distance path loss model.
-        
-        Args:
-            rssi: Received signal strength in dBm
-            
         Returns:
-            Estimated distance in meters
+            A dict: {sensor_id: rssi}
         """
-        return 10 ** ((self.p0 - rssi) / (10 * self.n))
-    
-    def convert_measurements(self, measurements: Dict[str, float]) -> Dict[str, float]:
-        """
-        Convert multiple RSSI measurements to distances.
-        
-        Args:
-            measurements: Dictionary mapping sensor IDs to RSSI values
-            
-        Returns:
-            Dictionary mapping sensor IDs to estimated distances
-        """
-        return {sensor_id: self.rssi_to_distance(rssi) 
-                for sensor_id, rssi in measurements.items()}
-    
-    def calibrate_model(self, known_distances: List[float], 
-                       measured_rssi: List[float]) -> None:
-        """
-        Calibrate the path loss model using known distances and RSSI measurements.
-        
-        Args:
-            known_distances: List of known distances in meters
-            measured_rssi: List of corresponding RSSI measurements in dBm
-        """
-        if len(known_distances) != len(measured_rssi):
-            raise ValueError("Number of distances must match number of RSSI measurements")
-        
-        # Calculate path loss exponent using linear regression
-        x = np.log10(known_distances)
-        y = measured_rssi
-        
-        # Linear regression: y = mx + b
-        m, b = np.polyfit(x, y, 1)
-        
-        # Update model parameters
-        self.n = -m / 10
-        self.p0 = b 
+        simulated_rssi = {}
+        for sensor_id, ap_pos in self.sensor_positions.items():
+            distance = np.linalg.norm(np.array(device_pos) - np.array(ap_pos))
+            if distance < 0.1:
+                distance = 0.1
+
+            if distance <= self.d0:
+                path_loss_dB = self.PL_d0_dB
+            else:
+                path_loss_dB = self.PL_d0_dB + 10 * self.path_loss_exponent * np.log10(distance / self.d0)
+
+            # Add log-normal shadowing
+            shadowing_dB = np.random.normal(0, self.shadowing_std_dev_dB)
+            total_loss_dB = path_loss_dB + shadowing_dB
+            rssi = self.tx_power_dBm - total_loss_dB
+            simulated_rssi[sensor_id] = max(rssi, self.noise_floor_dBm)
+
+        return simulated_rssi

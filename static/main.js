@@ -55,8 +55,8 @@ async function loadData() {
     }));
     const layout = {
         margin: { t: 40 },
-        xaxis: { title: 'X Position (m)' },
-        yaxis: { title: 'Y Position (m)' },
+        xaxis: { title: 'X Location (m)' },
+        yaxis: { title: 'Y Location (m)' },
         showlegend: false,
         hovermode: 'closest',
         plot_bgcolor: '#f8f9fa',
@@ -72,8 +72,8 @@ function showDeviceDetails(deviceId) {
     const device = devices.find(d => d.id === deviceId);
     if (!device) return;
 
-    document.getElementById("manualX").value = device.position.x.toFixed(2);
-    document.getElementById("manualY").value = device.position.y.toFixed(2);
+    document.getElementById("manualX").value = device.real_position.x.toFixed(2);
+    document.getElementById("manualY").value = device.real_position.y.toFixed(2);
 
     let html = `
         <div class="row g-3">
@@ -82,7 +82,11 @@ function showDeviceDetails(deviceId) {
                     <div class="card-body">
                         <h6 class="card-title text-primary">Device ID</h6>
                         <p class="mb-1"><code>${device.id}</code></p>
-                        <h6 class="card-title text-primary mt-3">Estimated Position</h6>
+
+                        <h6 class="card-title text-success mt-3">Real Location</h6>
+                        <p>(${device.real_position.x.toFixed(2)}, ${device.real_position.y.toFixed(2)})</p>
+
+                        <h6 class="card-title text-primary mt-3">Estimated Location</h6>
                         <p>(${device.position.x.toFixed(2)}, ${device.position.y.toFixed(2)})</p>
                     </div>
                 </div>
@@ -120,7 +124,7 @@ function showDeviceDetails(deviceId) {
     modal.show();
 }
 
-function updateDevicePosition() {
+function updateDeviceLocation() {
     const x = parseFloat(document.getElementById("manualX").value);
     const y = parseFloat(document.getElementById("manualY").value);
 
@@ -135,7 +139,7 @@ function updateDevicePosition() {
         body: JSON.stringify({ device_id: selectedDeviceId, x: x, y: y })
     }).then(res => {
         if (res.ok) {
-            alert("Position updated.");
+            alert("Location updated.");
             loadData();
         } else {
             alert("Update failed.");
@@ -145,10 +149,13 @@ function updateDevicePosition() {
 
 document.addEventListener('DOMContentLoaded', () => {
     loadData();
-    setInterval(loadData, 10000); // otomatik güncelleme (10 saniye)
+    setInterval(loadData, 10000);
 });
+
 function showTrilaterationPlotly(device) {
-    const infoHtml = `<b>Device:</b> <code>${device.id}</code> | <b>Estimated Position:</b> (${device.position.x.toFixed(2)}, ${device.position.y.toFixed(2)})`;
+    const infoHtml = `<b>Device:</b> <code>${device.id}</code><br>
+                      <b>Estimated:</b> (${device.position.x.toFixed(2)}, ${device.position.y.toFixed(2)})<br>
+                      <b>Real:</b> (${device.real_position.x.toFixed(2)}, ${device.real_position.y.toFixed(2)})`;
     document.getElementById('deviceInfoOnChart').innerHTML = infoHtml;
 
     let traces = [];
@@ -157,7 +164,6 @@ function showTrilaterationPlotly(device) {
         const sensor = sensors.find(s => s.id === m.sensor_id);
         if (!sensor) return;
 
-        // sensor noktası
         traces.push({
             x: [sensor.position.x],
             y: [sensor.position.y],
@@ -170,8 +176,7 @@ function showTrilaterationPlotly(device) {
             hovertemplate: `Sensor: ${m.sensor_id}<br>X: ${sensor.position.x.toFixed(2)}<br>Y: ${sensor.position.y.toFixed(2)}<extra></extra>`
         });
 
-        // çember (mesafe)
-        const theta = Array.from({length: 100}, (_, i) => 2 * Math.PI * i / 100);
+        const theta = Array.from({ length: 100 }, (_, i) => 2 * Math.PI * i / 100);
         const circleX = theta.map(t => sensor.position.x + m.distance * Math.cos(t));
         const circleY = theta.map(t => sensor.position.y + m.distance * Math.sin(t));
         traces.push({
@@ -185,18 +190,33 @@ function showTrilaterationPlotly(device) {
         });
     });
 
-    // cihaz noktası
+    // Estimated position (blue)
     traces.push({
         x: [device.position.x],
         y: [device.position.y],
         mode: 'markers+text',
         type: 'scatter',
         marker: { size: 18, color: '#0d6efd' },
-        text: ['Device'],
+        text: ['Estimated'],
         textposition: 'top center',
-        name: 'Device',
-        hovertemplate: `Device<br>X: ${device.position.x.toFixed(2)}<br>Y: ${device.position.y.toFixed(2)}<extra></extra>`
+        name: 'Estimated',
+        hovertemplate: `Estimated<br>X: ${device.position.x.toFixed(2)}<br>Y: ${device.position.y.toFixed(2)}<extra></extra>`
     });
+
+    // OPTIONAL: Real position (green)
+    /*
+    traces.push({
+        x: [device.real_position.x],
+        y: [device.real_position.y],
+        mode: 'markers+text',
+        type: 'scatter',
+        marker: { size: 18, color: '#198754' },
+        text: ['Real'],
+        textposition: 'top right',
+        name: 'Real',
+        hovertemplate: `Real<br>X: ${device.real_position.x.toFixed(2)}<br>Y: ${device.real_position.y.toFixed(2)}<extra></extra>`
+    });
+    */
 
     const allX = traces.flatMap(t => t.x);
     const allY = traces.flatMap(t => t.y);
@@ -218,7 +238,7 @@ function showTrilaterationPlotly(device) {
         plot_bgcolor: '#f8f9fa',
         paper_bgcolor: '#f8f9fa',
         font: { family: 'Inter, Arial, sans-serif' },
-        showlegend: false,
+        showlegend: true,
         height: 320
     };
 
@@ -228,78 +248,4 @@ function showTrilaterationPlotly(device) {
         displaylogo: false
     });
 }
-let draggingDeviceId = null;
-let currentDeviceTraces = [];  // güncel trace'ları frontendde güncellemek için
-
-document.getElementById('map').on('plotly_click', function (event) {
-    const point = event.points[0];
-    const clickedId = point.data.name;
-
-    // Tıklanan cihaz ise: taşıma moduna geç
-    const clickedDevice = devices.find(d => d.id === clickedId);
-    if (clickedDevice) {
-        draggingDeviceId = clickedDevice.id;
-        alert(`Selected device ${clickedId.slice(-6)}.\nClick another spot on the map to move it.`);
-        return;
-    }
-
-    // Taşıma modundaysa ve tıklanan yer cihaz değilse: frontend'de taşı
-    if (draggingDeviceId) {
-        const newX = point.x;
-        const newY = point.y;
-
-        const deviceIndex = devices.findIndex(d => d.id === draggingDeviceId);
-        if (deviceIndex === -1) return;
-
-        // frontend verisini güncelle
-        devices[deviceIndex].position.x = newX;
-        devices[deviceIndex].position.y = newY;
-
-        // sadece cihazları yeniden çiz (sensör sabit kalır)
-        const deviceTraces = devices.map(device => ({
-            x: [device.position.x],
-            y: [device.position.y],
-            mode: 'markers+text',
-            type: 'scatter',
-            name: device.id,
-            text: [device.id.slice(-6)],
-            textposition: 'top center',
-            marker: {
-                size: 12,
-                color: '#0d6efd'
-            }
-        }));
-
-        // sensor trace'ları önceden saklandıysa kullan, yoksa baştan oluştur
-        if (currentDeviceTraces.length === 0) {
-            currentDeviceTraces = sensors.map(sensor => ({
-                x: [sensor.position.x],
-                y: [sensor.position.y],
-                mode: 'markers+text',
-                type: 'scatter',
-                name: sensor.id,
-                text: [sensor.id],
-                textposition: 'bottom right',
-                marker: {
-                    symbol: 'triangle-up',
-                    size: 18,
-                    color: '#dc3545'
-                }
-            }));
-        }
-
-        Plotly.react('map', [...currentDeviceTraces, ...deviceTraces], {
-            margin: { t: 40 },
-            xaxis: { title: 'X Position (m)' },
-            yaxis: { title: 'Y Position (m)' },
-            showlegend: false,
-            hovermode: 'closest',
-            plot_bgcolor: '#f8f9fa',
-            paper_bgcolor: '#f8f9fa',
-            font: { family: 'Inter, Arial, sans-serif' }
-        });
-
-        draggingDeviceId = null; // taşıma bitti
-    }
-});
 

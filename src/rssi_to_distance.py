@@ -10,7 +10,7 @@ class RSSIConverter:
                  tx_power_dBm: float = 20.0,
                  PL_d0_dB: float = 40.0,
                  d0: float = 1.0,
-                 path_loss_exponent: float = 2.0,
+                 path_loss_exponent: float = 2.3,
                  shadowing_std_dev_dB: float = 0.1,
                  noise_floor_dBm: float = -90.0):
         """

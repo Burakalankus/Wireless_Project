@@ -1,9 +1,9 @@
 // main.js (Tüm Özelliklerle Tam Sürüm)
 
 let devices = []; // Her cihaz objesi şunları içerecek:
-                  // - position_history: tahmini konumlar [{x,y}, ...]
-                  // - real_position_history: gerçek konumlar [{x,y}, ...]
-                  // - rssi_along_path_history: [ { step: N, real_pos: {x,y}, rssi_values: {sensorId: rssi, ...} }, ... ]
+// - position_history: tahmini konumlar [{x,y}, ...]
+// - real_position_history: gerçek konumlar [{x,y}, ...]
+// - rssi_along_path_history: [ { step: N, real_pos: {x,y}, rssi_values: {sensorId: rssi, ...} }, ... ]
 let sensors = [];
 let selectedDeviceId = null;
 let devicesDataTable = null;
@@ -29,10 +29,10 @@ async function loadData() {
             }
 
             if (estHist.length === 0 && newDevice.position && typeof newDevice.position.x === 'number') {
-                 estHist.push({ ...newDevice.position });
+                estHist.push({ ...newDevice.position });
             }
             if (realHist.length === 0 && newDevice.real_position && typeof newDevice.real_position.x === 'number') {
-                 realHist.push({ ...newDevice.real_position });
+                realHist.push({ ...newDevice.real_position });
             }
             // rssi_along_path_history, updateDeviceLocation'da aktif olarak doldurulacak.
             // loadData'da sadece var olanı koruyoruz.
@@ -53,7 +53,7 @@ async function loadData() {
             pageLength: 8,
             data: devices.map(device => {
                 if (!device || !device.id || !device.position || typeof device.position.x !== 'number') {
-                    return { id_display: `<span class="text-danger">Error</span>`, x_pos: 'N/A', y_pos: 'N/A', id_hidden: 'error-' + Math.random().toString(36).substr(2,9) };
+                    return { id_display: `<span class="text-danger">Error</span>`, x_pos: 'N/A', y_pos: 'N/A', id_hidden: 'error-' + Math.random().toString(36).substr(2, 9) };
                 }
                 return {
                     id_display: `<span class="text-primary fw-bold" style="cursor:pointer;">${device.id.slice(-8)}</span>`,
@@ -65,7 +65,7 @@ async function loadData() {
             columns: [
                 { data: 'id_display', title: 'Device ID' }, { data: 'x_pos', title: 'X (m)' }, { data: 'y_pos', title: 'Y (m)' }
             ],
-            createdRow: function(row, data, dataIndex) {
+            createdRow: function (row, data, dataIndex) {
                 if (data && data.id_hidden) $(row).attr('data-id', data.id_hidden);
             }
         });
@@ -80,7 +80,7 @@ async function loadData() {
             if (device && device.position && typeof device.position.x === 'number') {
                 deviceMapTraces.push({
                     x: [device.position.x], y: [device.position.y], mode: 'markers+text', type: 'scatter',
-                    name: device.id, text: [device.id.slice(-6)], textposition: 'top center',
+                    name: device.id, text: [device.id.slice(-8)], textposition: 'top center',
                     marker: { size: 12, color: '#0d6efd' }
                 });
                 // Ana haritaya son hareketi gösteren yol (isteğe bağlı)
@@ -139,15 +139,15 @@ async function updateDeviceLocation() {
                 let estHistory = existingDevice.position_history || [];
                 if (updatedDataForThisDevice.position && typeof updatedDataForThisDevice.position.x === 'number' && (estHistory.length === 0 ||
                     (estHistory[estHistory.length - 1].x !== updatedDataForThisDevice.position.x ||
-                     estHistory[estHistory.length - 1].y !== updatedDataForThisDevice.position.y))) {
+                        estHistory[estHistory.length - 1].y !== updatedDataForThisDevice.position.y))) {
                     estHistory = [...estHistory, { ...updatedDataForThisDevice.position }];
                 }
 
                 let realHist = existingDevice.real_position_history || [];
                 if (updatedDataForThisDevice.real_position && typeof updatedDataForThisDevice.real_position.x === 'number' && (realHist.length === 0 ||
-                    (realHist[realHist.length-1].x !== updatedDataForThisDevice.real_position.x ||
-                     realHist[realHist.length-1].y !== updatedDataForThisDevice.real_position.y)) ){
-                    realHist = [...realHist, {...updatedDataForThisDevice.real_position}];
+                    (realHist[realHist.length - 1].x !== updatedDataForThisDevice.real_position.x ||
+                        realHist[realHist.length - 1].y !== updatedDataForThisDevice.real_position.y))) {
+                    realHist = [...realHist, { ...updatedDataForThisDevice.real_position }];
                 }
 
                 let rssiPathHist = existingDevice.rssi_along_path_history || [];
@@ -159,7 +159,7 @@ async function updateDeviceLocation() {
                     });
                 }
                 if (Object.keys(newRssiMeasurements).length > 0 && updatedDataForThisDevice.real_position) {
-                     rssiPathHist.push({
+                    rssiPathHist.push({
                         step: currentStep,
                         real_pos: { ...updatedDataForThisDevice.real_position },
                         rssi_values: newRssiMeasurements
@@ -223,6 +223,9 @@ function showDeviceDetails(deviceId) {
         if (document.getElementById('trilaterationPlot')) showTrilaterationPlotly(device);
         if (document.getElementById('devicePathPlot')) showDevicePathHistoryPlot(device);
         if (document.getElementById('rssiAlongPathPlot')) showRssiAlongPathPlot(device);
+        if (document.getElementById('fullRssiLogsPlot')) {
+            loadAndShowFullRssiLogs(deviceId); // deviceId'yi gönderiyoruz
+        }
     }, 100);
 
     const modalEl = document.getElementById('deviceModal');
@@ -245,7 +248,7 @@ function showTrilaterationPlotly(device) {
     console.log("showTrilaterationPlotly CALLED for device:", device.id);
     const plotDiv = document.getElementById('trilaterationPlot');
     if (!plotDiv) { console.error("trilaterationPlot element not found."); return; }
-    try { Plotly.purge(plotDiv); } catch(e) {}
+    try { Plotly.purge(plotDiv); } catch (e) { }
 
     if (!device || !device.position || !device.real_position || !device.measurements ||
         typeof device.position.x !== 'number' || typeof device.real_position.x !== 'number') {
@@ -266,7 +269,7 @@ function showTrilaterationPlotly(device) {
         traces.push({
             x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
             marker: { symbol: 'triangle-up', size: 16, color: '#dc3545' }, text: [m.sensor_id],
-            textposition: 'bottom right', name: `Sensoar ${m.sensor_id}`,
+            textposition: 'bottom right', name: `Sensor ${m.sensor_id}`,
             hovertemplate: `${m.sensor_id}<br>X: ${sensor.position.x.toFixed(2)}<br>Y: ${sensor.position.y.toFixed(2)}<extra></extra>`
         });
         const theta = Array.from({ length: 100 }, (_, i) => 2 * Math.PI * i / 100);
@@ -316,20 +319,20 @@ function showDevicePathHistoryPlot(device) {
     console.log("showDevicePathHistoryPlot (MATLAB Style) CALLED for device:", device.id);
     const pathPlotDiv = document.getElementById('devicePathPlot');
     if (!pathPlotDiv) { console.error("devicePathPlot element not found."); return; }
-    try { Plotly.purge(pathPlotDiv); } catch(e) {}
+    try { Plotly.purge(pathPlotDiv); } catch (e) { }
 
     const estHistory = device.position_history; const realHistory = device.real_position_history;
-    if ( (!estHistory || estHistory.length < 1) && (!realHistory || realHistory.length < 1) ) {
+    if ((!estHistory || estHistory.length < 1) && (!realHistory || realHistory.length < 1)) {
         pathPlotDiv.innerHTML = '<p class="text-muted text-center">No position history to draw.</p>'; return;
     }
     let plotTraces = [];
-        if (sensors && sensors.length > 0) {
+    if (sensors && sensors.length > 0) {
         const MAX_HEATMAP_RADIUS = 50; const NUM_HEATMAP_CIRCLES = 5;
         sensors.forEach(sensor => {
             if (sensor.position && typeof sensor.position.x === 'number') {
                 for (let i = 1; i <= NUM_HEATMAP_CIRCLES; i++) {
                     const radius = (MAX_HEATMAP_RADIUS / NUM_HEATMAP_CIRCLES) * i;
-                    const opacity = 1.0 - ( (i-1) / NUM_HEATMAP_CIRCLES ) * 0.85;
+                    const opacity = 1.0 - ((i - 1) / NUM_HEATMAP_CIRCLES) * 0.85;
                     const color = `rgba(255, 0, 0, ${opacity * 0.15})`; // Daha saydam kırmızı
                     const theta = Array.from({ length: 50 }, (_, k) => 2 * Math.PI * k / 50); // Daha az nokta
                     plotTraces.push({
@@ -341,8 +344,8 @@ function showDevicePathHistoryPlot(device) {
                 }
                 plotTraces.push({ // Sensör marker'ı heatmap üzerinde
                     x: [sensor.position.x], y: [sensor.position.y], mode: 'markers', type: 'scatter',
-                     text: [sensor.id.slice(-4)], textposition: 'bottom right',
-                    marker: { symbol: 'triangle-up', size: 12, color: 'red', line: {color: 'white', width:1} },
+                    text: [sensor.id.slice(-4)], textposition: 'bottom right',
+                    marker: { symbol: 'triangle-up', size: 12, color: 'red', line: { color: 'white', width: 1 } },
                     customdata: [`${sensor.id}:\n(${sensor.position.x.toFixed(2)},${sensor.position.y.toFixed(2)})`],
                     hovertemplate: '%{customdata}<extra></extra>'
                 });
@@ -352,7 +355,7 @@ function showDevicePathHistoryPlot(device) {
     if (realHistory && realHistory.length >= 1) {
         plotTraces.push({
             x: realHistory.map(p => p.x), y: realHistory.map(p => p.y),
-            mode: realHistory.length >=2 ? 'lines+markers' : 'markers', type: 'scatter', name: 'Real Location',
+            mode: realHistory.length >= 2 ? 'lines+markers' : 'markers', type: 'scatter', name: 'Real Location',
             line: { color: 'blue', width: 2 }, marker: { color: 'blue', size: 5 }
         });
     }
@@ -360,8 +363,8 @@ function showDevicePathHistoryPlot(device) {
         plotTraces.push({
             x: estHistory.map(p => p.x), y: estHistory.map(p => p.y),
             mode: 'markers', type: 'scatter', name: 'Estimated Positions',
-            marker: { color: 'green', size: 7, symbol: 'circle-open', line: { color: 'green', width: 1 }},
-            text: estHistory.map((p, i) => `Estimation ${i+1}: (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`), hoverinfo: 'text'
+            marker: { color: 'green', size: 7, symbol: 'circle-open', line: { color: 'green', width: 1 } },
+            text: estHistory.map((p, i) => `Estimation ${i + 1}: (${p.x.toFixed(2)}, ${p.y.toFixed(2)})`), hoverinfo: 'text'
         });
     }
     if (sensors && sensors.length > 0) {
@@ -393,11 +396,11 @@ function showDevicePathHistoryPlot(device) {
         const yMin = Math.min(...allYForRange), yMax = Math.max(...allYForRange);
         const xR = xMax - xMin, yR = yMax - yMin;
         const xP = xR > 0.1 ? xR * 0.15 : 1, yP = yR > 0.1 ? yR * 0.15 : 1;
-        layoutPath.xaxis.range = [xMin - Math.max(1,xP), xMax + Math.max(1,xP)];
-        layoutPath.yaxis.range = [yMin - Math.max(1,yP), yMax + Math.max(1,yP)];
+        layoutPath.xaxis.range = [xMin - Math.max(1, xP), xMax + Math.max(1, xP)];
+        layoutPath.yaxis.range = [yMin - Math.max(1, yP), yMax + Math.max(1, yP)];
     } else { layoutPath.xaxis.range = [-10, 10]; layoutPath.yaxis.range = [-10, 10]; }
     Plotly.newPlot(pathPlotDiv, plotTraces, layoutPath, { displayModeBar: true, responsive: true, displaylogo: false });
-    
+
 }
 
 // RSSI ALONG PATH GRAFİĞİ FONKSİYONU
@@ -405,7 +408,7 @@ function showRssiAlongPathPlot(device) {
     console.log("showRssiAlongPathPlot CALLED for device:", device.id);
     const plotDiv = document.getElementById('rssiAlongPathPlot');
     if (!plotDiv) { console.error("rssiAlongPathPlot element not found."); return; }
-    try { Plotly.purge(plotDiv); } catch(e) {}
+    try { Plotly.purge(plotDiv); } catch (e) { }
 
     const history = device.rssi_along_path_history;
     if (!history || !Array.isArray(history) || history.length < 1) {
@@ -429,4 +432,83 @@ function showRssiAlongPathPlot(device) {
         legend: { x: 1, y: 1, xanchor: 'right', yanchor: 'top' }, height: 300
     };
     Plotly.newPlot(plotDiv, plotTraces, layoutRssi, { responsive: true, displaylogo: false });
+}
+
+async function loadAndShowFullRssiLogs(deviceId) {
+    console.log("loadAndShowFullRssiLogs CALLED for deviceId:", deviceId);
+    const plotDiv = document.getElementById('fullRssiLogsPlot');
+    if (!plotDiv) { console.error("fullRssiLogsPlot element not found."); return; }
+
+    try {
+        const response = await fetch(`/api/device_rssi_logs/${deviceId}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            plotDiv.innerHTML = `<p class="text-danger">Error loading logs: ${errorData.error || response.statusText}</p>`;
+            console.error("Error fetching full RSSI logs:", response.status, errorData);
+            return;
+        }
+        const fullLogsData = await response.json();
+        console.log("Full RSSI logs data received:", fullLogsData);
+
+        if (Object.keys(fullLogsData).length === 0) {
+            plotDiv.innerHTML = '<p class="text-muted text-center">No historical RSSI logs found for this device.</p>';
+            return;
+        }
+
+        try { Plotly.purge(plotDiv); } catch (e) { } // Önceki grafiği temizle
+
+        let plotTraces = [];
+        const sensorIds = Object.keys(fullLogsData);
+
+        sensorIds.forEach(sensorId => {
+            const sensorLogEntries = fullLogsData[sensorId];
+            if (sensorLogEntries && sensorLogEntries.length > 0) {
+                // Timestamp'leri Date objelerine çevirip sıralayalım (backend zaten sıralı gönderiyor olabilir)
+                const sortedEntries = sensorLogEntries
+                    .map(entry => ({ ...entry, timestamp: new Date(entry.timestamp) }))
+                    .sort((a, b) => a.timestamp - b.timestamp);
+
+                const timestamps = sortedEntries.map(entry => entry.timestamp);
+                const rssiValues = sortedEntries.map(entry => entry.rssi);
+
+                plotTraces.push({
+                    x: timestamps, // X ekseni zaman damgaları
+                    y: rssiValues,
+                    mode: 'lines+markers', // Çizgi ve noktalar
+                    type: 'scatter',
+                    name: `${sensorId.slice(-11)}`, // Legend için
+                    marker: { size: 4 }, // Nokta boyutuF
+                    // line: { shape: 'spline' } // Daha yumuşak çizgiler için
+                });
+            }
+        });
+
+        if (plotTraces.length === 0) {
+            plotDiv.innerHTML = '<p class="text-muted text-center">No plottable RSSI data found in logs.</p>';
+            return;
+        }
+
+        const layoutFullLogs = {
+            margin: { t: 40, b: 80, l: 50, r: 30 }, // Alt marjini artır (zaman etiketleri için)
+            xaxis: {
+                title: 'Timestamp',
+                type: 'date', // X ekseni türü tarih
+                tickformat: '%H:%M:%S\n%Y-%m-%d', // Tarih formatı
+                // rangeslider: {} // Zaman aralığı seçici (isteğe bağlı)
+            },
+            yaxis: { title: 'RSSI (dBm)' },
+            plot_bgcolor: 'white',
+            paper_bgcolor: 'white',
+            showlegend: true,
+            legend: { x: 1, y: 1, xanchor: 'right', yanchor: 'top' },
+            height: 350
+        };
+
+        Plotly.newPlot(plotDiv, plotTraces, layoutFullLogs, { responsive: true, displaylogo: false });
+        console.log("Full RSSI logs plot updated.");
+
+    } catch (error) {
+        plotDiv.innerHTML = `<p class="text-danger">Failed to load or plot historical RSSI data.</p>`;
+        console.error("Error in loadAndShowFullRssiLogs:", error);
+    }
 }

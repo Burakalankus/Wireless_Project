@@ -94,6 +94,55 @@ def update_position():
             writer.writerow([timestamp, device_id, x, y, rssi])
 
     return '', 200
+# app.py dosyanızın sonlarına doğru (if __name__ == '__main__': öncesi)
 
+import pandas as pd # Eğer zaten import edilmediyse
+import glob # Eğer zaten import edilmediyse
+
+@app.route('/api/device_rssi_logs/<device_id>')
+def get_device_rssi_logs(device_id):
+    log_dir = os.path.join("data", "logs")
+    all_sensor_logs = {}
+
+    if not os.path.exists(log_dir):
+        return jsonify({"error": "Logs directory not found"}), 404
+
+    # Tüm sensor.csv dosyalarını bul
+    log_files = glob.glob(os.path.join(log_dir, "*.csv"))
+
+    for log_file in log_files:
+        sensor_id_from_filename = os.path.basename(log_file).replace(".csv", "")
+        try:
+            df = pd.read_csv(log_file)
+            # Gerekli kolonların varlığını kontrol et
+            if not {'timestamp', 'device_id', 'rssi'}.issubset(df.columns):
+                print(f"Skipping {log_file}, missing required columns.")
+                continue
+
+            # Belirli device_id için filtrele
+            device_specific_logs = df[df['device_id'] == device_id]
+
+            if not device_specific_logs.empty:
+                # Timestamp'e göre sırala (isteğe bağlı ama genellikle iyi bir fikir)
+                device_specific_logs = device_specific_logs.sort_values(by='timestamp')
+                
+                # Sadece timestamp ve rssi al
+                sensor_data = device_specific_logs[['timestamp', 'rssi']].to_dict(orient='records')
+                all_sensor_logs[sensor_id_from_filename] = sensor_data
+        except pd.errors.EmptyDataError:
+            print(f"Log file {log_file} is empty or unreadable, skipping.")
+        except Exception as e:
+            print(f"Error processing log file {log_file}: {e}")
+            # Hata durumunda bu sensörü atlayabilir veya boş bir liste döndürebilirsiniz
+            # all_sensor_logs[sensor_id_from_filename] = [] 
+
+    if not all_sensor_logs:
+        # Hiçbir log bulunamadıysa veya sadece hata oluştuysa
+        # return jsonify({"message": f"No logs found for device_id: {device_id}"}), 404
+        # Boş bir obje döndürmek frontend'de daha kolay işlenebilir
+        return jsonify({})
+
+
+    return jsonify(all_sensor_logs)
 if __name__ == '__main__':
     app.run(debug=True)

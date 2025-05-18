@@ -8,7 +8,10 @@ let sensors = [];
 let selectedDeviceId = null;
 let devicesDataTable = null;
 
+// main.js (Sadece loadData fonksiyonunun güncellenmiş hali)
+
 async function loadData() {
+    console.log("loadData CALLED");
     try {
         const devicesPromise = fetch('/api/devices').then(r => r.json());
         const sensorsPromise = fetch('/api/sensors').then(r => r.json());
@@ -28,14 +31,11 @@ async function loadData() {
             }
 
             if (estHist.length === 0 && newDevice.position && typeof newDevice.position.x === 'number') {
-                estHist.push({ ...newDevice.position });
+                 estHist.push({ ...newDevice.position });
             }
             if (realHist.length === 0 && newDevice.real_position && typeof newDevice.real_position.x === 'number') {
-                realHist.push({ ...newDevice.real_position });
+                 realHist.push({ ...newDevice.real_position });
             }
-            // rssi_along_path_history, updateDeviceLocation'da aktif olarak doldurulacak.
-            // loadData'da sadece var olanı koruyoruz.
-
             return {
                 ...newDevice,
                 position_history: estHist,
@@ -52,7 +52,7 @@ async function loadData() {
             pageLength: 8,
             data: devices.map(device => {
                 if (!device || !device.id || !device.position || typeof device.position.x !== 'number') {
-                    return { id_display: `<span class="text-danger">Error</span>`, x_pos: 'N/A', y_pos: 'N/A', id_hidden: 'error-' + Math.random().toString(36).substr(2, 9) };
+                    return { id_display: `<span class="text-danger">Error</span>`, x_pos: 'N/A', y_pos: 'N/A', id_hidden: 'error-' + Math.random().toString(36).substr(2,9) };
                 }
                 return {
                     id_display: `<span class="text-primary fw-bold" style="cursor:pointer;">${device.id.slice(-8)}</span>`,
@@ -61,56 +61,51 @@ async function loadData() {
                     id_hidden: device.id
                 };
             }),
-            columns: [
-                { data: 'id_display', title: 'Device ID' }, { data: 'x_pos', title: 'X (m)' }, { data: 'y_pos', title: 'Y (m)' }
-            ],
-            createdRow: function (row, data, dataIndex) {
-                if (data && data.id_hidden) $(row).attr('data-id', data.id_hidden);
-            }
+            columns: [ { data: 'id_display', title: 'Device ID' }, { data: 'x_pos', title: 'X (m)' }, { data: 'y_pos', title: 'Y (m)' } ],
+            createdRow: function(row, data, dataIndex) { if (data && data.id_hidden) $(row).attr('data-id', data.id_hidden); }
         });
 
+        // Ana Haritayı Güncelle
         const sensorMapTraces = sensors.map(sensor => ({
             x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
-            name: 'AP ' + sensor.id.slice(-1), text: [sensor.id], textposition: 'bottom right',
-            marker: { symbol: 'triangle-up', size: 18, color: '#dc3545' }
+            name: 'AP '+ sensor.id.slice(-1), // Sensör ID'sini 'name' olarak sakla
+            text: [sensor.id.slice(-8)], // Kısa gösterim için text
+            textposition: 'bottom right',
+            marker: { symbol: 'triangle-up', size: 18, color: '#dc3545' },
+            meta: { type: 'sensor', sensorId: sensor.id } // Tıklamada ayırt etmek için meta bilgi
         }));
+
         let deviceMapTraces = [];
         devices.forEach(device => {
-            // Cihazın 'position' (tahmini konum) alanını kontrol et
             if (device && device.position && typeof device.position.x === 'number' && typeof device.position.y === 'number') {
                 deviceMapTraces.push({
-                    x: [device.position.x], // YENİ ve DOĞRU: Tahmini konumu kullan
-                    y: [device.position.y], // YENİ ve DOĞRU: Tahmini konumu kullan
+                    x: [device.position.x], // Tahmini X
+                    y: [device.position.y], // Tahmini Y
                     mode: 'markers+text', type: 'scatter',
-                    name: "Est. Location",
+                    name: device.id, // Cihaz ID'sini 'name' olarak sakla (tıklamada almak için)
                     text: [device.id.slice(-8)], // Cihaz ID'sinin son 8 hanesi
                     textposition: 'top center',
-                    marker: { size: 12, color: '#0d6efd' }
+                    marker: { size: 12, color: '#0d6efd' },
+                    meta: { type: 'device', deviceId: device.id } // Tıklamada ayırt etmek ve ID'yi almak için
                 });
-
                 // Ana haritaya son hareketi gösteren yol (tahmini konumlara göre)
-                // Bu kısım zaten position_history (tahmini konum geçmişi) kullanıyordu, bu doğru.
                 if (device.position_history && device.position_history.length >= 2) {
                     const lastPos = device.position_history[device.position_history.length - 1];
                     const prevPos = device.position_history[device.position_history.length - 2];
-                    if (prevPos && lastPos &&
-                        typeof prevPos.x === 'number' && typeof prevPos.y === 'number' &&
-                        typeof lastPos.x === 'number' && typeof lastPos.y === 'number' &&
-                        (prevPos.x !== lastPos.x || prevPos.y !== lastPos.y)) {
+                    if (prevPos && lastPos && typeof prevPos.x === 'number' && typeof lastPos.x === 'number' && (prevPos.x !== lastPos.x || prevPos.y !== lastPos.y)) {
                         deviceMapTraces.push({
                             x: [prevPos.x, lastPos.x], y: [prevPos.y, lastPos.y],
                             mode: 'lines', type: 'scatter', line: { color: '#0d6efd', width: 2, dash: 'dot' },
-                            hoverinfo: 'skip', showlegend: false
+                            hoverinfo: 'skip', showlegend: false,
+                            meta: { type: 'path' } // Bu bir yol çizgisi, tıklanabilir olmasın
                         });
                     }
                 }
-            } else {
-                console.warn("Device skipped for main map due to missing/invalid estimated position:", device ? device.id : "Unknown device");
             }
         });
 
         const mapLayout = {
-            margin: { t: 40, b: 50, l: 60, r: 10 }, // Alt marjini artırdım (X ekseni başlığı için)
+            margin: { t: 40, b: 50, l: 60, r: 10 },
             xaxis: { title: 'X Location (m)' },
             yaxis: { title: 'Y Location (m)', scaleanchor: "x", scaleratio: 1 },
             showlegend: false,
@@ -119,11 +114,45 @@ async function loadData() {
             paper_bgcolor: '#f8f9fa',
             font: { family: 'Inter, Arial, sans-serif' }
         };
-        Plotly.react('map', [...sensorMapTraces, ...deviceMapTraces], mapLayout, { responsive: true, displaylogo: false });
-        console.log("loadData: Main map updated using ESTIMATED positions for devices.");
+
+        await Plotly.react('map', [...sensorMapTraces, ...deviceMapTraces], mapLayout, { responsive: true, displaylogo: false });
+        console.log("loadData: Main map updated using ESTIMATED device positions.");
+
+        // Haritaya Click Event Listener Ekleme
+        const mapDiv = document.getElementById('map');
+        if (mapDiv && !mapDiv.plotlyClickListenerAttached) { // Listener'ın daha önce eklenmediğinden emin ol
+            mapDiv.on('plotly_click', function(data){
+                console.log("Map clicked:", data);
+                if (data.points.length > 0) {
+                    const clickedPoint = data.points[0];
+                    const traceIndex = clickedPoint.curveNumber;
+                    
+                    // mapDiv.data dinamik olarak değişebileceği için,
+                    // o anki grafiğin tam veri yapısını kullanmak daha iyi olabilir.
+                    // Plotly.react sonrası mapDiv.data güncel olmalı.
+                    const currentTracesOnMap = mapDiv.data;
+                    if (traceIndex < currentTracesOnMap.length) {
+                        const clickedTrace = currentTracesOnMap[traceIndex];
+                        if (clickedTrace && clickedTrace.meta) {
+                            if (clickedTrace.meta.type === 'device') {
+                                const deviceId = clickedTrace.meta.deviceId;
+                                console.log("Clicked on device on map:", deviceId);
+                                if (deviceId) {
+                                    showDeviceDetails(deviceId);
+                                }
+                            } else if (clickedTrace.meta.type === 'sensor') {
+                                console.log("Clicked on sensor on map:", clickedTrace.meta.sensorId);
+                                // İsteğe bağlı: Sensöre tıklanınca yapılacaklar
+                            }
+                        }
+                    }
+                }
+            });
+            mapDiv.plotlyClickListenerAttached = true; // Listener eklendi olarak işaretle
+            console.log("Map click listener attached for the first time.");
+        }
 
     } catch (error) { console.error("Error in loadData:", error); }
-
 }
 
 async function updateDeviceLocation() {
@@ -344,7 +373,7 @@ function showDevicePathHistoryPlot(device) {
     }
     let plotTraces = [];
     if (sensors && sensors.length > 0) {
-        const MAX_HEATMAP_RADIUS = 50; const NUM_HEATMAP_CIRCLES = 5;
+        const MAX_HEATMAP_RADIUS = 200; const NUM_HEATMAP_CIRCLES = 5;
         sensors.forEach(sensor => {
             if (sensor.position && typeof sensor.position.x === 'number') {
                 for (let i = 1; i <= NUM_HEATMAP_CIRCLES; i++) {

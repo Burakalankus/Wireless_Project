@@ -1,6 +1,6 @@
-# Wi-Fi Indoor Positioning System
+# Wi-Fi Positioning System
 
-A Python-based indoor positioning system that uses Wi-Fi RSSI (Received Signal Strength Indicator) measurements to estimate device positions in indoor environments.
+A Python-based positioning system that uses Wi-Fi RSSI (Received Signal Strength Indicator) measurements to estimate device positions in outdoor environments.
 
 ## Features
 
@@ -48,7 +48,7 @@ pip install -r requirements.txt
 2. Run the main script:
 
 ```bash
-python main.py
+python app.py
 ```
 
 ## Configuration

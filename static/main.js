@@ -9,7 +9,6 @@ let selectedDeviceId = null;
 let devicesDataTable = null;
 
 async function loadData() {
-    console.log("loadData CALLED");
     try {
         const devicesPromise = fetch('/api/devices').then(r => r.json());
         const sensorsPromise = fetch('/api/sensors').then(r => r.json());
@@ -72,22 +71,32 @@ async function loadData() {
 
         const sensorMapTraces = sensors.map(sensor => ({
             x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
-            name: sensor.id, text: [sensor.id], textposition: 'bottom right',
+            name: 'AP ' + sensor.id.slice(-1), text: [sensor.id], textposition: 'bottom right',
             marker: { symbol: 'triangle-up', size: 18, color: '#dc3545' }
         }));
         let deviceMapTraces = [];
         devices.forEach(device => {
-            if (device && device.position && typeof device.position.x === 'number') {
+            // Cihazın 'position' (tahmini konum) alanını kontrol et
+            if (device && device.position && typeof device.position.x === 'number' && typeof device.position.y === 'number') {
                 deviceMapTraces.push({
-                    x: [device.position.x], y: [device.position.y], mode: 'markers+text', type: 'scatter',
-                    name: device.id, text: [device.id.slice(-8)], textposition: 'top center',
+                    x: [device.position.x], // YENİ ve DOĞRU: Tahmini konumu kullan
+                    y: [device.position.y], // YENİ ve DOĞRU: Tahmini konumu kullan
+                    mode: 'markers+text', type: 'scatter',
+                    name: "Est. Location",
+                    text: [device.id.slice(-8)], // Cihaz ID'sinin son 8 hanesi
+                    textposition: 'top center',
                     marker: { size: 12, color: '#0d6efd' }
                 });
-                // Ana haritaya son hareketi gösteren yol (isteğe bağlı)
+
+                // Ana haritaya son hareketi gösteren yol (tahmini konumlara göre)
+                // Bu kısım zaten position_history (tahmini konum geçmişi) kullanıyordu, bu doğru.
                 if (device.position_history && device.position_history.length >= 2) {
                     const lastPos = device.position_history[device.position_history.length - 1];
                     const prevPos = device.position_history[device.position_history.length - 2];
-                    if (prevPos && lastPos && (prevPos.x !== lastPos.x || prevPos.y !== lastPos.y)) {
+                    if (prevPos && lastPos &&
+                        typeof prevPos.x === 'number' && typeof prevPos.y === 'number' &&
+                        typeof lastPos.x === 'number' && typeof lastPos.y === 'number' &&
+                        (prevPos.x !== lastPos.x || prevPos.y !== lastPos.y)) {
                         deviceMapTraces.push({
                             x: [prevPos.x, lastPos.x], y: [prevPos.y, lastPos.y],
                             mode: 'lines', type: 'scatter', line: { color: '#0d6efd', width: 2, dash: 'dot' },
@@ -95,18 +104,26 @@ async function loadData() {
                         });
                     }
                 }
+            } else {
+                console.warn("Device skipped for main map due to missing/invalid estimated position:", device ? device.id : "Unknown device");
             }
         });
+
         const mapLayout = {
-            margin: { t: 40, b: 50, l: 60, r: 10 },
-            xaxis: { title: 'X Location (m)' }, yaxis: { title: 'Y Location (m)', scaleanchor: "x", scaleratio: 1 },
-            showlegend: false, hovermode: 'closest', plot_bgcolor: '#f8f9fa', paper_bgcolor: '#f8f9fa',
+            margin: { t: 40, b: 50, l: 60, r: 10 }, // Alt marjini artırdım (X ekseni başlığı için)
+            xaxis: { title: 'X Location (m)' },
+            yaxis: { title: 'Y Location (m)', scaleanchor: "x", scaleratio: 1 },
+            showlegend: false,
+            hovermode: 'closest',
+            plot_bgcolor: '#f8f9fa',
+            paper_bgcolor: '#f8f9fa',
             font: { family: 'Inter, Arial, sans-serif' }
         };
         Plotly.react('map', [...sensorMapTraces, ...deviceMapTraces], mapLayout, { responsive: true, displaylogo: false });
-        console.log("loadData: Main map updated");
+        console.log("loadData: Main map updated using ESTIMATED positions for devices.");
 
     } catch (error) { console.error("Error in loadData:", error); }
+
 }
 
 async function updateDeviceLocation() {

@@ -8,7 +8,16 @@ let sensors = [];
 let selectedDeviceId = null;
 let devicesDataTable = null;
 
-// main.js (Sadece loadData fonksiyonunun güncellenmiş hali)
+
+// main.js (Sadece loadData fonksiyonunun güncellenmiş hali - PNG ikonlar için)
+
+// main.js (Sadece loadData fonksiyonunun güncellenmiş hali - PNG ikonlar, hover ve tıklama iyileştirmeleri)
+
+// main.js (Sadece loadData fonksiyonunun güncellenmiş hali - PNG ikonlar ve altında Annotation ile ID)
+
+// main.js (loadData fonksiyonunun tam ve güncellenmiş hali - Cihaz Türüne Göre PNG İkonlar ve Altında ID)
+
+// main.js (loadData fonksiyonunun güncellenmiş tam hali - Cihaz annotation'ı için yshift ayarı ile)
 
 async function loadData() {
     console.log("loadData CALLED");
@@ -44,7 +53,7 @@ async function loadData() {
             };
         });
         devices = updatedDevices;
-        console.log("loadData: Global devices array updated", JSON.parse(JSON.stringify(devices)));
+        // console.log("loadData: Global devices array updated", JSON.parse(JSON.stringify(devices))); // Gerekirse loglamayı açın
 
         if (devicesDataTable) { devicesDataTable.destroy(); }
         $("#devicesTable tbody").empty();
@@ -65,30 +74,76 @@ async function loadData() {
             createdRow: function(row, data, dataIndex) { if (data && data.id_hidden) $(row).attr('data-id', data.id_hidden); }
         });
 
+
+
         // Ana Haritayı Güncelle
-        const sensorMapTraces = sensors.map(sensor => ({
+        // 1. SENSÖRLER İÇİN TRACE'LER (SVG MARKER KULLANARAK)
+                const sensorMapTraces = sensors.map(sensor => ({
             x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
-            name: 'AP '+ sensor.id.slice(-1), // Sensör ID'sini 'name' olarak sakla
-            text: [sensor.id.slice(-8)], // Kısa gösterim için text
-            textposition: 'bottom right',
-            marker: { symbol: 'triangle-up', size: 18, color: '#dc3545' },
-            meta: { type: 'sensor', sensorId: sensor.id } // Tıklamada ayırt etmek için meta bilgi
+            name: 'AP ' + sensor.id.slice(-1), text: [sensor.id], textposition: 'bottom',
+            marker: { symbol: 'triangle-up', size: 20, color: 'red' }
         }));
 
+
+        // 2. CİHAZLAR İÇİN TRACE'LER (PNG İKON + ANNOTATION KULLANARAK)
         let deviceMapTraces = [];
+        let layoutImages = [];
+        let layoutAnnotations = [];
+
         devices.forEach(device => {
             if (device && device.position && typeof device.position.x === 'number' && typeof device.position.y === 'number') {
+                const deviceLabelForAnnotation = device.id.slice(-8); // Annotation için kullanılacak etiket
+                const deviceLabelForHover = device.id.slice(-6);     // Hover için (daha kısa olabilir)
+
+                // Cihaz için "hayalet" trace (tıklama ve hover için görünmez)
                 deviceMapTraces.push({
-                    x: [device.position.x], // Tahmini X
-                    y: [device.position.y], // Tahmini Y
-                    mode: 'markers+text', type: 'scatter',
-                    name: device.id, // Cihaz ID'sini 'name' olarak sakla (tıklamada almak için)
-                    text: [device.id.slice(-8)], // Cihaz ID'sinin son 8 hanesi
-                    textposition: 'top center',
-                    marker: { size: 12, color: '#0d6efd' },
-                    meta: { type: 'device', deviceId: device.id } // Tıklamada ayırt etmek ve ID'yi almak için
+                    x: [device.position.x],
+                    y: [device.position.y],
+                    mode: 'markers',
+                    type: 'scatter',
+                  
+                    marker: { size: 12, opacity: 0 }, // PNG ikonuna göre tıklama alanını ayarla
+                    customdata: [device.id],
+                    hoverinfo: 'text',
+                    text: `X: ${device.position.x.toFixed(2)}m<br>Y: ${device.position.y.toFixed(2)}m<br>Type: ${device.type || 'Unknown'}`,
+                    meta: { type: 'device', deviceId: device.id }
                 });
-                // Ana haritaya son hareketi gösteren yol (tahmini konumlara göre)
+
+                // Cihaz türüne göre PNG ikon yolu
+                let iconPath = "/static/images/default_device.png";
+                const deviceTypeString = (device.type || "unknown").toLowerCase();
+                switch (deviceTypeString) {
+                    case 'phone': case 'smartphone': iconPath = "/static/images/phone.png"; break;
+                    case 'laptop': case 'notebook': iconPath = "/static/images/laptop.png"; break;
+                    case 'pc': case 'desktop': iconPath = "/static/images/desktop.png"; break;
+                    case 'tablet': iconPath = "/static/images/tablet.png"; break;
+                    case 'smart watch': case 'smartwatch': iconPath = "/static/images/watch.png"; break;
+                }
+                layoutImages.push({
+                    source: iconPath, xref: "x", yref: "y", x: device.position.x, y: device.position.y,
+                    sizex: 4, sizey: 4, xanchor: "center", yanchor: "middle", // PNG ikon boyutu (DENEYİN)
+                    sizing: "contain", opacity: 1, layer: "above"
+                });
+
+                // Cihaz ID'sini PNG'nin altına annotation olarak eklemek
+                layoutAnnotations.push({
+                    x: device.position.x,
+                    y: device.position.y,
+                    xref: 'x', yref: 'y',
+                    text: `<b>${deviceLabelForAnnotation}</b>`,
+                    showarrow: false,
+                    font: { family: 'Inter, Arial, sans-serif', size: 9, color: '#333' },
+                    xanchor: 'center',
+                    yanchor: 'top',  // Metnin ÜST kenarını, ikonun Y merkezine hizalar
+                    yshift: -15      // Metni PNG ikonunun ALTINA doğru iter (negatif yshift aşağı iter)
+                                     // Bu değeri PNG ikonunuzun 'sizey' (örneğin 4 ise, yarısı 2 data birimi)
+                                     // ve metnin font boyutuna göre ayarlayın.
+                                     // Örnek: sizey=4 için yshift: -12 veya -14 iyi bir başlangıç olabilir.
+                                     // İkonun sizey'si 4 data birimi ise, yshift: - (4/2 * ölçek + fontYüksekliği/2 + boşluk)
+                                     // Daha basitçe, deneyerek bulun.
+                });
+
+                // Ana haritaya son hareketi gösteren yol çizgisi
                 if (device.position_history && device.position_history.length >= 2) {
                     const lastPos = device.position_history[device.position_history.length - 1];
                     const prevPos = device.position_history[device.position_history.length - 2];
@@ -97,7 +152,7 @@ async function loadData() {
                             x: [prevPos.x, lastPos.x], y: [prevPos.y, lastPos.y],
                             mode: 'lines', type: 'scatter', line: { color: '#0d6efd', width: 2, dash: 'dot' },
                             hoverinfo: 'skip', showlegend: false,
-                            meta: { type: 'path' } // Bu bir yol çizgisi, tıklanabilir olmasın
+                            meta: { type: 'path' }
                         });
                     }
                 }
@@ -106,49 +161,59 @@ async function loadData() {
 
         const mapLayout = {
             margin: { t: 40, b: 50, l: 60, r: 10 },
-            xaxis: { title: 'X Location (m)' },
-            yaxis: { title: 'Y Location (m)', scaleanchor: "x", scaleratio: 1 },
+            xaxis: {
+                title: 'X Location (m)', zeroline: true, zerolinecolor: '#adb5bd', zerolinewidth: 1,
+                showgrid: true, gridcolor: '#dee2e6'
+            },
+            yaxis: {
+                title: 'Y Location (m)', scaleanchor: "x", scaleratio: 1, zeroline: true,
+                zerolinecolor: '#adb5bd', zerolinewidth: 1, showgrid: true, gridcolor: '#dee2e6'
+            },
             showlegend: false,
             hovermode: 'closest',
             plot_bgcolor: '#f8f9fa',
             paper_bgcolor: '#f8f9fa',
-            font: { family: 'Inter, Arial, sans-serif' }
+            font: { family: 'Inter, Arial, sans-serif' },
+            images: layoutImages,       // Sadece cihaz PNG'leri için
+            annotations: layoutAnnotations // Cihaz ve sensör etiketleri (sensörler için henüz eklenmedi, istenirse eklenebilir)
         };
 
-        await Plotly.react('map', [...sensorMapTraces, ...deviceMapTraces], mapLayout, { responsive: true, displaylogo: false });
-        console.log("loadData: Main map updated using ESTIMATED device positions.");
+        const allMapTraces = [...sensorMapTraces, ...deviceMapTraces];
 
-        // Haritaya Click Event Listener Ekleme
+        await Plotly.react('map', allMapTraces, mapLayout, { responsive: true, displaylogo: false });
+        console.log("loadData: Main map updated with SVG for sensors and PNGs with annotations for devices.");
+
         const mapDiv = document.getElementById('map');
-        if (mapDiv && !mapDiv.plotlyClickListenerAttached) { // Listener'ın daha önce eklenmediğinden emin ol
+        if (mapDiv && !mapDiv.plotlyClickListenerAttached) {
             mapDiv.on('plotly_click', function(data){
-                console.log("Map clicked:", data);
                 if (data.points.length > 0) {
-                    const clickedPoint = data.points[0];
-                    const traceIndex = clickedPoint.curveNumber;
-                    
-                    // mapDiv.data dinamik olarak değişebileceği için,
-                    // o anki grafiğin tam veri yapısını kullanmak daha iyi olabilir.
-                    // Plotly.react sonrası mapDiv.data güncel olmalı.
-                    const currentTracesOnMap = mapDiv.data;
-                    if (traceIndex < currentTracesOnMap.length) {
-                        const clickedTrace = currentTracesOnMap[traceIndex];
-                        if (clickedTrace && clickedTrace.meta) {
-                            if (clickedTrace.meta.type === 'device') {
-                                const deviceId = clickedTrace.meta.deviceId;
-                                console.log("Clicked on device on map:", deviceId);
-                                if (deviceId) {
-                                    showDeviceDetails(deviceId);
-                                }
-                            } else if (clickedTrace.meta.type === 'sensor') {
-                                console.log("Clicked on sensor on map:", clickedTrace.meta.sensorId);
-                                // İsteğe bağlı: Sensöre tıklanınca yapılacaklar
-                            }
+                    const point = data.points[0];
+                    const trace = mapDiv.data[point.curveNumber];
+                    let idToOpen = null;
+                    let typeOfClick = null;
+
+                    if (point.customdata) {
+                        idToOpen = Array.isArray(point.customdata) ? point.customdata[0] : point.customdata;
+                        if (trace && trace.meta) typeOfClick = trace.meta.type;
+                        if (!(trace && trace.meta && ((trace.meta.type === 'device' && trace.meta.deviceId === idToOpen) || (trace.meta.type === 'sensor' && trace.meta.sensorId === idToOpen)))) {
+                            idToOpen = null; typeOfClick = null;
                         }
+                    }
+                    if (!idToOpen && trace && trace.meta) {
+                        if (trace.meta.type === 'device') idToOpen = trace.meta.deviceId;
+                        else if (trace.meta.type === 'sensor') idToOpen = trace.meta.sensorId;
+                        typeOfClick = trace.meta.type;
+                    }
+
+                    if (idToOpen && typeOfClick === 'device') {
+                        console.log("Clicked on device (via map):", idToOpen);
+                        showDeviceDetails(idToOpen);
+                    } else if (idToOpen && typeOfClick === 'sensor') {
+                        console.log("Clicked on sensor (via map):", idToOpen);
                     }
                 }
             });
-            mapDiv.plotlyClickListenerAttached = true; // Listener eklendi olarak işaretle
+            mapDiv.plotlyClickListenerAttached = true;
             console.log("Map click listener attached for the first time.");
         }
 
@@ -315,7 +380,7 @@ function showTrilaterationPlotly(device) {
         traces.push({
             x: [sensor.position.x], y: [sensor.position.y], mode: 'markers+text', type: 'scatter',
             marker: { symbol: 'triangle-up', size: 16, color: '#dc3545' }, text: [m.sensor_id],
-            textposition: 'bottom right', name: `Sensor ${m.sensor_id}`,
+            textposition: 'bottom right',
             hovertemplate: `${m.sensor_id}<br>X: ${sensor.position.x.toFixed(2)}<br>Y: ${sensor.position.y.toFixed(2)}<extra></extra>`
         });
         const theta = Array.from({ length: 100 }, (_, i) => 2 * Math.PI * i / 100);

@@ -1,6 +1,6 @@
 # Wi-Fi Positioning System
-
-A Python-based positioning system that uses Wi-Fi RSSI (Received Signal Strength Indicator) measurements to estimate device positions in outdoor environments.
+GPS isn’t always suitable for short-range or dense areas.
+A Python-based positioning system that uses Wi-Fi RSSI (Received Signal Strength Indicator) measurements to estimate device positions in campus, city square like environments.
 
 ## Features
 
